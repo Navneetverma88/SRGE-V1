@@ -1,1 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SRGE</title>
+  <!-- jsPDF for client-side PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Noto+Sans:wght@400;600&display=swap');
+
+    :root {
+      --inv: #4f46e5;
+      --inv-dark: #3730a3;
+      --bill: #0891b2;
+      --bill-dark: #0e7490;
+      --wa: #25d366;
+      --bg: #f0f2f9;
+      --card: #ffffff;
+      --text: #1e1b4b;
+      --sub: #6b7280;
+      --border: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Noto Sans', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 20px 16px 40px;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .screen { display: none; flex-direction: column; }
+    .screen.active { display: flex; }
+
+    /* ── HOME ───────────────────────────────── */
+    #home {
+      align-items: center; justify-content: center;
+      min-height: 92vh; gap: 20px;
+    }
+    .brand-icon { font-size: 56px; line-height: 1; }
+    .brand-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 52px; font-weight: 700;
+      color: var(--text); letter-spacing: 4px;
+    }
+    .brand-sub { font-size: 13px; color: var(--sub); margin-top: -12px; letter-spacing: 1px; }
+
+    .home-btn {
+      width: 100%; padding: 22px 16px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px; font-weight: 700;
+      letter-spacing: 1px;
+      border: none; border-radius: 18px;
+      cursor: pointer; color: white;
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      transition: transform .12s, box-shadow .12s;
+    }
+    .home-btn:active { transform: scale(0.97); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .home-btn.inv-btn     { background: var(--inv); }
+    .home-btn.bill-btn    { background: var(--bill); }
+    .home-btn.settings-btn { background: #64748b; }
+    .home-btn .btn-icon   { font-size: 28px; }
+
+    /* ── INNER HEADER ───────────────────────── */
+    .inner-header {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 22px;
+    }
+    .back-btn {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 8px 14px;
+      font-size: 15px; font-weight: 600; color: var(--text);
+      cursor: pointer; white-space: nowrap;
+    }
+    .inner-header h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px; font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ── COMMAND CARD ───────────────────────── */
+    .cmd-card {
+      background: var(--card); border-radius: 18px;
+      padding: 18px 16px; margin-bottom: 18px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    label {
+      display: block; font-size: 13px; font-weight: 600;
+      color: var(--sub); margin-bottom: 10px; letter-spacing: .3px;
+    }
+
+    .input-row {
+      display: flex; gap: 10px; align-items: center;
+    }
+    input[type="text"], input[type="number"] {
+      flex: 1; padding: 13px 14px; font-size: 15px;
+      font-family: 'Noto Sans', sans-serif;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      background: var(--bg); color: var(--text);
+      outline: none; width: 100%;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus { border-color: var(--inv); }
+
+    /* Mic button */
+    .mic-btn {
+      width: 52px; height: 52px; border-radius: 14px;
+      border: none; cursor: pointer; font-size: 22px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: transform .1s;
+      position: relative; overflow: hidden;
+    }
+    .mic-btn:active { transform: scale(0.93); }
+    .mic-btn.inv-mic  { background: var(--inv); color: white; }
+    .mic-btn.bill-mic { background: var(--bill); color: white; }
+    .mic-btn.listening { animation: pulse-mic 1s infinite; }
+
+    @keyframes pulse-mic {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.5); }
+      50%       { box-shadow: 0 0 0 10px rgba(79,70,229,0); }
+    }
+    .bill-mic.listening { animation: pulse-mic-bill 1s infinite; }
+    @keyframes pulse-mic-bill {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(8,145,178,0.5); }
+      50%       { box-shadow: 0 0 0 10px rgba(8,145,178,0); }
+    }
+
+    .submit-btn {
+      width: 100%; padding: 17px; margin-top: 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 19px; font-weight: 700; letter-spacing: .5px;
+      color: white; border: none; border-radius: 13px; cursor: pointer;
+      transition: transform .1s;
+    }
+    .submit-btn:active { transform: scale(0.98); }
+    .inv-color    { background: var(--inv); }
+    .bill-color   { background: var(--bill); }
+
+    .examples {
+      font-size: 11.5px; color: #aaa; margin-top: 12px; line-height: 1.9;
+    }
+    .examples span { display: block; }
+
+    /* ── STATUS MSG ─────────────────────────── */
+    .msg {
+      padding: 12px 15px; border-radius: 12px;
+      font-size: 14px; margin-top: 4px; display: none;
+    }
+    .success { background: #dcfce7; color: #15803d; }
+    .error   { background: #fee2e2; color: #b91c1c; }
+    .listening-status {
+      padding: 10px 15px; border-radius: 12px; font-size: 14px;
+      background: #ede9fe; color: var(--inv); display: none;
+      align-items: center; gap: 8px; margin-top: 4px;
+    }
+    .listening-status.active { display: flex; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--inv); animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+    /* ── TABLE ──────────────────────────────── */
+    .section-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 17px; font-weight: 700; color: var(--text);
+      margin: 20px 0 10px;
+    }
+    .table-wrap { background: var(--card); border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 11px 13px; font-size: 12px; font-weight: 700;
+      text-align: left; color: white; text-transform: uppercase; letter-spacing: .5px;
+    }
+    th.inv-th  { background: var(--inv); }
+    th.bill-th { background: var(--bill); }
+    td { padding: 11px 13px; font-size: 13.5px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+    tr:last-child td { border-bottom: none; }
+    .empty { text-align: center; color: #bbb; font-size: 13px; padding: 22px; }
+
+    /* ── INVOICE CARD ───────────────────────── */
+    .invoice-result {
+      background: var(--card); border-radius: 16px;
+      padding: 18px 16px; margin-top: 16px;
+      border: 1.5px solid #bae6fd; display: none;
+      box-shadow: 0 2px 12px rgba(8,145,178,0.08);
+    }
+    .inv-cust {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--text);
+      margin-bottom: 2px;
+    }
+    .inv-sub { font-size: 12px; color: var(--sub); margin-bottom: 14px; }
+    .grand {
+      text-align: right; font-family: 'Rajdhani', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--bill);
+      margin-top: 12px; padding-top: 12px;
+      border-top: 2px solid var(--border);
+    }
+    .gst-line {
+      text-align: right; font-size: 13px; color: var(--sub);
+      margin-top: 6px;
+    }
+
+    /* ── INVOICE ACTION BUTTONS ─────────────── */
+    .invoice-actions {
+      display: flex; gap: 10px; margin-top: 14px;
+    }
+    .action-btn {
+      flex: 1; padding: 14px 8px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px; font-weight: 700; letter-spacing: .3px;
+      border: none; border-radius: 12px; cursor: pointer;
+      color: white; display: flex; align-items: center;
+      justify-content: center; gap: 6px;
+      transition: transform .1s;
+    }
+    .action-btn:active { transform: scale(0.97); }
+    .pdf-btn { background: #dc2626; }
+    .wa-btn  { background: var(--wa); }
+
+    /* ── SETTINGS ───────────────────────────── */
+    .settings-card {
+      background: var(--card); border-radius: 18px;
+      padding: 18px 16px; margin-bottom: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .settings-card h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 17px; font-weight: 700; color: var(--text);
+      margin-bottom: 16px;
+    }
+    .setting-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .setting-label { font-size: 14px; font-weight: 600; color: var(--text); }
+    .setting-sub   { font-size: 12px; color: var(--sub); margin-top: 2px; }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #d1d5db; border-radius: 28px;
+      transition: background .2s;
+    }
+    .slider:before {
+      content: ''; position: absolute;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: white; left: 3px; top: 3px;
+      transition: transform .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked + .slider { background: var(--inv); }
+    .toggle input:checked + .slider:before { transform: translateX(22px); }
+
+    /* Format selector */
+    .format-btns { display: flex; gap: 8px; }
+    .fmt-btn {
+      padding: 8px 16px; border-radius: 10px; font-size: 13px;
+      font-weight: 700; cursor: pointer; border: 2px solid var(--border);
+      background: var(--bg); color: var(--sub); transition: all .15s;
+    }
+    .fmt-btn.active { background: var(--inv); color: white; border-color: var(--inv); }
+
+    .save-settings-btn {
+      width: 100%; padding: 15px; margin-top: 4px;
+      font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700;
+      background: #64748b; color: white; border: none; border-radius: 13px; cursor: pointer;
+    }
+    .save-settings-btn:active { background: #475569; }
+  </style>
+</head>
+<body>
+
+  <!-- ══ HOME ═══════════════════════════════════════════ -->
+  <div class="screen active" id="home">
+    <div class="brand-icon">🏪</div>
+    <div class="brand-name">SRGE</div>
+    <div class="brand-sub">Voice-powered shop assistant</div>
+    <button class="home-btn inv-btn"      onclick="goTo('inventory')"><span class="btn-icon">📦</span> Inventory</button>
+    <button class="home-btn bill-btn"     onclick="goTo('invoice')"><span class="btn-icon">🧾</span> Create Invoice</button>
+    <button class="home-btn settings-btn" onclick="goTo('settings')"><span class="btn-icon">⚙️</span> Settings</button>
+  </div>
+
+  <!-- ══ INVENTORY ══════════════════════════════════════ -->
+  <div class="screen" id="inventory">
+    <div class="inner-header">
+      <button class="back-btn" onclick="goTo('home')">← Back</button>
+      <h2>📦 Inventory Setup</h2>
+    </div>
+
+    <div class="cmd-card">
+      <label>INVENTORY COMMAND</label>
+      <div class="input-row">
+        <input type="text" id="invCmd" placeholder="Add Water Bottle price 10 quantity 50" />
+        <button class="mic-btn inv-mic" id="invMicBtn" onclick="startVoice('inv')" title="Speak">🎤</button>
+      </div>
+      <button class="submit-btn inv-color" onclick="handleInventory()">Submit Command</button>
+      <div class="examples">
+        <span>🇬🇧 Add Water Bottle price 10 quantity 50</span>
+        <span>🇮🇳 Paani bottle add karo daam 10 quantity 50</span>
+        <span>🇮🇳 Milk ka price 50 aur quantity 20 set karo</span>
+      </div>
+    </div>
+
+    <div id="invListening" class="listening-status"><div class="dot"></div> Sun raha hoon… Speak now</div>
+    <div id="invMsg" class="msg"></div>
+
+    <div class="section-title">Current Inventory</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="inv-th">Item</th><th class="inv-th">Price</th><th class="inv-th">Qty</th></tr></thead>
+        <tbody id="inventoryBody"><tr><td colspan="3" class="empty">No items yet.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ INVOICE ════════════════════════════════════════ -->
+  <div class="screen" id="invoice">
+    <div class="inner-header">
+      <button class="back-btn" onclick="goTo('home')">← Back</button>
+      <h2>🧾 Create Invoice</h2>
+    </div>
+
+    <div class="cmd-card">
+      <label>INVOICE COMMAND</label>
+      <div class="input-row">
+        <input type="text" id="invoiceCmd" placeholder="Customer Amit item Water Bottle quantity 2" />
+        <button class="mic-btn bill-mic" id="invMicBtn2" onclick="startVoice('invoice')" title="Speak">🎤</button>
+      </div>
+      <button class="submit-btn bill-color" onclick="handleInvoice()">Generate Invoice</button>
+      <div class="examples">
+        <span>🇬🇧 Customer Amit item Water Bottle quantity 2</span>
+        <span>🇬🇧 Create invoice for Amit, 2 Water Bottle</span>
+        <span>🇮🇳 Amit ka bill banao, 2 biscuit</span>
+        <span>🇮🇳 Ramesh ke liye invoice banao, 3 water bottle</span>
+      </div>
+    </div>
+
+    <div id="invoiceListening" class="listening-status">
+      <div class="dot" style="background:var(--bill)"></div> Sun raha hoon… Speak now
+    </div>
+    <div id="invoiceMsg" class="msg"></div>
+
+    <div class="invoice-result" id="invoiceCard">
+      <div class="inv-cust" id="invoiceTitle"></div>
+      <div class="inv-sub"  id="invoiceCustomer"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="bill-th">Item</th>
+              <th class="bill-th">Qty</th>
+              <th class="bill-th">Price</th>
+              <th class="bill-th">Total</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceBody"></tbody>
+        </table>
+      </div>
+      <div class="gst-line" id="gstLine" style="display:none"></div>
+      <div class="grand" id="grandTotal"></div>
+
+      <div class="invoice-actions">
+        <button class="action-btn pdf-btn" onclick="downloadPDF()">📄 Download PDF</button>
+        <button class="action-btn wa-btn"  onclick="shareWhatsApp()">💬 WhatsApp</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SETTINGS ═══════════════════════════════════════ -->
+  <div class="screen" id="settings">
+    <div class="inner-header">
+      <button class="back-btn" onclick="goTo('home')">← Back</button>
+      <h2>⚙️ Settings</h2>
+    </div>
+
+    <div class="settings-card">
+      <h3>Shop Details</h3>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Shop Name</div>
+          <div class="setting-sub">Appears on every invoice</div>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <input type="text" id="shopNameInput" placeholder="My Shop Name" style="margin-top:8px" />
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">GST (18%)</div>
+          <div class="setting-sub">Add GST to invoice totals</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="gstToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Invoice Format</div>
+          <div class="setting-sub">Choose your preferred style</div>
+        </div>
+        <div class="format-btns">
+          <button class="fmt-btn active" id="fmtClassic" onclick="setFormat('classic')">Classic</button>
+          <button class="fmt-btn"        id="fmtSimple"  onclick="setFormat('simple')">Simple</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="save-settings-btn" onclick="saveSettings()">✅ Save Settings</button>
+    <div id="settingsMsg" class="msg" style="margin-top:12px"></div>
+  </div>
+
+  <script>
+    // ────────────────────────────────────────────────────
+    // STATE
+    // ────────────────────────────────────────────────────
+    const inventory = {};
+    let recognition  = null;
+    let activeTarget = null;
+
+    // Settings defaults
+    const settings = { shopName: 'My Shop', gst: false, format: 'classic' };
+
+    // Last invoice data (for PDF / WA share)
+    let lastInvoice = null; // { customer, lines, subtotal, gstAmt, grand }
+
+    // ────────────────────────────────────────────────────
+    // NAVIGATION
+    // ────────────────────────────────────────────────────
+    function goTo(id) {
+      stopVoice();
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      window.scrollTo(0, 0);
+      if (id === 'settings') loadSettingsUI();
+    }
+
+    // ────────────────────────────────────────────────────
+    // SETTINGS
+    // ────────────────────────────────────────────────────
+    function loadSettingsUI() {
+      document.getElementById('shopNameInput').value = settings.shopName;
+      document.getElementById('gstToggle').checked   = settings.gst;
+      setFormat(settings.format, false);
+    }
+
+    function setFormat(fmt, save = true) {
+      settings.format = fmt;
+      document.getElementById('fmtClassic').classList.toggle('active', fmt === 'classic');
+      document.getElementById('fmtSimple').classList.toggle('active',  fmt === 'simple');
+    }
+
+    function saveSettings() {
+      const name = document.getElementById('shopNameInput').value.trim();
+      settings.shopName = name || 'My Shop';
+      settings.gst      = document.getElementById('gstToggle').checked;
+      showMsg('settingsMsg', '✅ Settings saved!', 'success');
+    }
+
+    // ────────────────────────────────────────────────────
+    // VOICE
+    // ────────────────────────────────────────────────────
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    function startVoice(target) {
+      if (!SpeechRecognition) {
+        showMsg(target === 'inv' ? 'invMsg' : 'invoiceMsg',
+          'Speech recognition not supported. Please use Chrome on Android.', 'error');
+        return;
+      }
+      if (recognition && activeTarget === target) { stopVoice(); return; }
+      stopVoice();
+
+      activeTarget = target;
+      recognition  = new SpeechRecognition();
+      recognition.lang            = 'en-IN';
+      recognition.continuous      = false;
+      recognition.interimResults  = false;
+      recognition.maxAlternatives = 1;
+
+      const micBtn  = document.getElementById(target === 'inv' ? 'invMicBtn' : 'invMicBtn2');
+      const statusEl = document.getElementById(target === 'inv' ? 'invListening' : 'invoiceListening');
+
+      micBtn.classList.add('listening');
+      micBtn.textContent = '⏹';
+      statusEl.classList.add('active');
+
+      recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        if (target === 'inv') {
+          document.getElementById('invCmd').value = transcript;
+          handleInventory();
+        } else {
+          document.getElementById('invoiceCmd').value = transcript;
+          handleInvoice();
+        }
+      };
+
+      recognition.onerror = (e) => {
+        let msg = 'Microphone error. Please try again.';
+        if (e.error === 'not-allowed') msg = 'Microphone permission denied. Please allow mic access.';
+        if (e.error === 'no-speech')   msg = 'Kuch suna nahi. Please try again.';
+        showMsg(target === 'inv' ? 'invMsg' : 'invoiceMsg', msg, 'error');
+        stopVoice();
+      };
+
+      recognition.onend = () => stopVoice();
+      recognition.start();
+    }
+
+    function stopVoice() {
+      if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+      ['invMicBtn','invMicBtn2'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+      });
+      ['invListening','invoiceListening'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
+      activeTarget = null;
+    }
+
+    // ────────────────────────────────────────────────────
+    // HINGLISH NORMALISER
+    // ────────────────────────────────────────────────────
+    function normalise(raw) {
+      return raw
+        .replace(/\bdaam\b/gi, 'price').replace(/\bkeemat\b/gi, 'price').replace(/\brate\b/gi, 'price')
+        .replace(/\bstock\b/gi, 'quantity').replace(/\bmaatra\b/gi, 'quantity')
+        .replace(/\baur\b/gi, ' ').replace(/\bka\b/gi, ' ').replace(/\bki\b/gi, ' ')
+        .replace(/\bke\s+liye\b/gi, ' for ').replace(/\bke\b/gi, ' ')
+        .replace(/\badd\s+karo\b/gi, 'add').replace(/\bset\s+karo\b/gi, 'add').replace(/\bdalo\b/gi, 'add')
+        .replace(/\bbill\s+banao\b/gi, 'create invoice for')
+        .replace(/\binvoice\s+banao\b/gi, 'create invoice for')
+        .replace(/\bbanao\b/gi, 'create invoice for')
+        .replace(/\s+/g, ' ').trim();
+    }
+
+    // ────────────────────────────────────────────────────
+    // INVENTORY
+    // ────────────────────────────────────────────────────
+    function handleInventory() {
+      const raw = document.getElementById('invCmd').value.trim();
+      if (!raw) { showMsg('invMsg', 'Please enter or speak a command.', 'error'); return; }
+
+      const cmd = normalise(raw);
+      const m1  = cmd.match(/(?:add\s+)?(.+?)\s+(?:add\s+)?price\s+([\d.]+)\s+quantity\s+(\d+)/i);
+      const m2  = cmd.match(/(?:add\s+)?(.+?)\s+(?:add\s+)?quantity\s+(\d+)\s+price\s+([\d.]+)/i);
+
+      let name, price, qty;
+      if (m1)      { name = m1[1].replace(/\badd\b/gi,'').trim(); price = parseFloat(m1[2]); qty = parseInt(m1[3]); }
+      else if (m2) { name = m2[1].replace(/\badd\b/gi,'').trim(); qty = parseInt(m2[2]); price = parseFloat(m2[3]); }
+      else { showMsg('invMsg', 'Command samajh nahi aaya. Try: Add Water Bottle price 10 quantity 50', 'error'); return; }
+
+      if (!name || isNaN(price) || isNaN(qty)) { showMsg('invMsg', 'Command samajh nahi aaya, please repeat.', 'error'); return; }
+
+      const key = name.toLowerCase();
+      const isUpdate = !!inventory[key];
+      inventory[key] = { name, price, qty };
+      renderInventory();
+      showMsg('invMsg', (isUpdate ? '✅ Updated' : '✅ Added') + ` "${name}" — Rs.${price}, Qty: ${qty}`, 'success');
+      document.getElementById('invCmd').value = '';
+    }
+
+    function renderInventory() {
+      const body  = document.getElementById('inventoryBody');
+      const items = Object.values(inventory);
+      body.innerHTML = items.length
+        ? items.map(i => `<tr><td>${i.name}</td><td>Rs.${i.price.toFixed(2)}</td><td>${i.qty}</td></tr>`).join('')
+        : '<tr><td colspan="3" class="empty">No items yet.</td></tr>';
+    }
+
+    document.getElementById('invCmd').addEventListener('keydown', e => { if (e.key === 'Enter') handleInventory(); });
+
+    // ────────────────────────────────────────────────────
+    // INVOICE
+    // ────────────────────────────────────────────────────
+    function handleInvoice() {
+      const raw = document.getElementById('invoiceCmd').value.trim();
+      if (!raw) { showMsg('invoiceMsg', 'Please enter or speak a command.', 'error'); return; }
+
+      const cmd = normalise(raw);
+
+      const voicePattern = cmd.match(/customer\s+(.+?)\s+item\s+(.+?)\s+quantity\s+(\d+)/i);
+      if (voicePattern) {
+        buildInvoice(voicePattern[1].trim(), [{ itemName: voicePattern[2].trim(), qty: parseInt(voicePattern[3]) }]);
+        return;
+      }
+
+      const invoiceMatch = cmd.match(/(?:create\s+invoice\s+for|invoice\s+for|invoice)\s+([^,]+),(.+)/i);
+      if (!invoiceMatch) {
+        showMsg('invoiceMsg', 'Command samajh nahi aaya. Try: Customer Amit item Water Bottle quantity 2', 'error');
+        return;
+      }
+
+      const customer  = invoiceMatch[1].trim();
+      const tokens    = invoiceMatch[2].trim().split(/,|\band\b/i).map(s => s.trim()).filter(Boolean);
+      const items     = tokens.map(t => { const m = t.match(/^(\d+)\s+(.+)$/i); return m ? { qty: parseInt(m[1]), itemName: m[2].trim() } : null; }).filter(Boolean);
+      buildInvoice(customer, items);
+    }
+
+    function buildInvoice(customer, items) {
+      const lines = [], errors = [];
+
+      for (const { itemName, qty } of items) {
+        const key      = itemName.toLowerCase();
+        const foundKey = Object.keys(inventory).find(k => k === key || k.includes(key) || key.includes(k));
+        if (!foundKey) { errors.push(`"${itemName}" inventory mein nahi mila`); continue; }
+        const inv = inventory[foundKey];
+        lines.push({ name: inv.name, qty, price: inv.price, total: qty * inv.price });
+      }
+
+      if (errors.length) { showMsg('invoiceMsg', '❌ ' + errors.join(' | '), 'error'); if (!lines.length) return; }
+      if (!lines.length) return;
+
+      const subtotal = lines.reduce((s, l) => s + l.total, 0);
+      const gstAmt   = settings.gst ? subtotal * 0.18 : 0;
+      const grand    = subtotal + gstAmt;
+      const invoiceNo = 'INV-' + Date.now().toString().slice(-6);
+
+      // Store for PDF/WA
+      lastInvoice = { customer, lines, subtotal, gstAmt, grand, invoiceNo };
+
+      // Render on-screen
+      document.getElementById('invoiceTitle').textContent    = customer;
+      document.getElementById('invoiceCustomer').textContent = `Invoice #${invoiceNo}  |  ${settings.shopName}`;
+
+      document.getElementById('invoiceBody').innerHTML = lines.map(l =>
+        `<tr><td>${l.name}</td><td>${l.qty}</td><td>Rs.${l.price.toFixed(2)}</td><td>Rs.${l.total.toFixed(2)}</td></tr>`
+      ).join('');
+
+      const gstLine = document.getElementById('gstLine');
+      if (settings.gst) {
+        gstLine.style.display = 'block';
+        gstLine.textContent   = `Subtotal: Rs.${subtotal.toFixed(2)}   |   GST 18%: Rs.${gstAmt.toFixed(2)}`;
+      } else {
+        gstLine.style.display = 'none';
+      }
+
+      document.getElementById('grandTotal').textContent = `Grand Total: Rs.${grand.toFixed(2)}`;
+      document.getElementById('invoiceCard').style.display = 'block';
+
+      if (!errors.length) showMsg('invoiceMsg', `✅ ${customer} ka invoice ban gaya!`, 'success');
+      document.getElementById('invoiceCmd').value = '';
+    }
+
+    document.getElementById('invoiceCmd').addEventListener('keydown', e => { if (e.key === 'Enter') handleInvoice(); });
+
+    // ────────────────────────────────────────────────────
+    // PDF GENERATION
+    // ────────────────────────────────────────────────────
+    function buildPDFDoc() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const inv = lastInvoice;
+      const fmt = settings.format;
+      const W   = doc.internal.pageSize.getWidth();
+
+      if (fmt === 'classic') {
+        // Header bar
+        doc.setFillColor(79, 70, 229);
+        doc.rect(0, 0, W, 70, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(28); doc.setFont('helvetica', 'bold');
+        doc.text(settings.shopName, 40, 44);
+        doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+        doc.text('INVOICE', W - 40, 44, { align: 'right' });
+
+        // Invoice meta
+        doc.setTextColor(60, 60, 80);
+        doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+        doc.text(`Invoice No: ${inv.invoiceNo}`, 40, 100);
+        doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 40, 118);
+        doc.text(`Customer: ${inv.customer}`, 40, 136);
+
+        // Divider
+        doc.setDrawColor(220, 220, 230);
+        doc.setLineWidth(0.8);
+        doc.line(40, 150, W - 40, 150);
+
+        // Table
+        doc.autoTable({
+          startY: 162,
+          head: [['Item', 'Qty', 'Price (Rs.)', 'Total (Rs.)']],
+          body: inv.lines.map(l => [l.name, l.qty, l.price.toFixed(2), l.total.toFixed(2)]),
+          theme: 'grid',
+          headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', fontSize: 11 },
+          bodyStyles: { fontSize: 11, textColor: [50, 50, 80] },
+          alternateRowStyles: { fillColor: [245, 245, 255] },
+          margin: { left: 40, right: 40 },
+        });
+
+        let y = doc.lastAutoTable.finalY + 16;
+
+        if (settings.gst) {
+          doc.setFontSize(11); doc.setTextColor(100, 100, 130);
+          doc.text(`Subtotal: Rs.${inv.subtotal.toFixed(2)}`, W - 40, y, { align: 'right' }); y += 18;
+          doc.text(`GST (18%): Rs.${inv.gstAmt.toFixed(2)}`, W - 40, y, { align: 'right' }); y += 14;
+          doc.setDrawColor(200, 200, 220); doc.line(W - 180, y, W - 40, y); y += 14;
+        }
+
+        doc.setFontSize(15); doc.setFont('helvetica', 'bold'); doc.setTextColor(8, 145, 178);
+        doc.text(`Grand Total: Rs.${inv.grand.toFixed(2)}`, W - 40, y, { align: 'right' });
+
+        doc.setFontSize(9); doc.setFont('helvetica', 'italic'); doc.setTextColor(170, 170, 190);
+        doc.text('Thank you for your business!', W / 2, y + 40, { align: 'center' });
+
+      } else {
+        // SIMPLE FORMAT
+        doc.setFontSize(22); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 27, 75);
+        doc.text(settings.shopName, 40, 50);
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 130);
+        doc.text(`Invoice #${inv.invoiceNo}  |  ${new Date().toLocaleDateString('en-IN')}`, 40, 68);
+        doc.text(`Customer: ${inv.customer}`, 40, 84);
+
+        doc.setDrawColor(220, 220, 230); doc.line(40, 96, W - 40, 96);
+
+        doc.autoTable({
+          startY: 108,
+          head: [['Item', 'Qty', 'Price', 'Total']],
+          body: inv.lines.map(l => [l.name, l.qty, `Rs.${l.price.toFixed(2)}`, `Rs.${l.total.toFixed(2)}`]),
+          theme: 'plain',
+          headStyles: { textColor: [79, 70, 229], fontStyle: 'bold', fontSize: 10, lineColor: [200,200,230], lineWidth: 0.5 },
+          bodyStyles: { fontSize: 10, textColor: [60, 60, 80] },
+          margin: { left: 40, right: 40 },
+        });
+
+        let y = doc.lastAutoTable.finalY + 14;
+        if (settings.gst) {
+          doc.setFontSize(10); doc.setTextColor(120, 120, 150);
+          doc.text(`Subtotal: Rs.${inv.subtotal.toFixed(2)}`, W - 40, y, { align: 'right' }); y += 14;
+          doc.text(`GST (18%): Rs.${inv.gstAmt.toFixed(2)}`, W - 40, y, { align: 'right' }); y += 12;
+        }
+        doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(8, 145, 178);
+        doc.text(`Total: Rs.${inv.grand.toFixed(2)}`, W - 40, y, { align: 'right' });
+      }
+
+      return doc;
+    }
+
+    function downloadPDF() {
+      if (!lastInvoice) { alert('Pehle invoice banao!'); return; }
+      const doc  = buildPDFDoc();
+      const name = `Invoice-${lastInvoice.customer.replace(/\s+/g,'_')}-${lastInvoice.invoiceNo}.pdf`;
+      doc.save(name);
+    }
+
+    // ────────────────────────────────────────────────────
+    // WHATSAPP SHARE
+    // ────────────────────────────────────────────────────
+    function shareWhatsApp() {
+      if (!lastInvoice) { alert('Pehle invoice banao!'); return; }
+      const inv = lastInvoice;
+
+      // Build a plain-text invoice for WA message
+      const lines = inv.lines.map(l =>
+        `  ${l.name} x${l.qty}  =  Rs.${l.total.toFixed(2)}`
+      ).join('\n');
+
+      let msg = `*${settings.shopName}*\n`;
+      msg += `Invoice #${inv.invoiceNo}\n`;
+      msg += `Customer: ${inv.customer}\n`;
+      msg += `Date: ${new Date().toLocaleDateString('en-IN')}\n\n`;
+      msg += `-----------------------------\n`;
+      msg += lines;
+      msg += `\n-----------------------------\n`;
+      if (settings.gst) {
+        msg += `Subtotal: Rs.${inv.subtotal.toFixed(2)}\n`;
+        msg += `GST (18%): Rs.${inv.gstAmt.toFixed(2)}\n`;
+      }
+      msg += `*Grand Total: Rs.${inv.grand.toFixed(2)}*\n\n`;
+      msg += `_Thank you for shopping with us!_`;
+
+      // On Android Chrome, Web Share API with file is best; fallback to wa.me text
+      const encoded = encodeURIComponent(msg);
+
+      // Try Web Share API with PDF blob first (Android Chrome supports it)
+      if (navigator.share && navigator.canShare) {
+        const doc  = buildPDFDoc();
+        const blob = doc.output('blob');
+        const file = new File([blob], `Invoice-${inv.invoiceNo}.pdf`, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({
+            title: `Invoice - ${inv.customer}`,
+            text:  msg,
+            files: [file]
+          }).catch(() => {
+            // fallback: open WA with text only
+            window.open(`https://wa.me/?text=${encoded}`, '_blank');
+          });
+          return;
+        }
+      }
+
+      // Fallback: WA text message
+      window.open(`https://wa.me/?text=${encoded}`, '_blank');
+    }
+
+    // ────────────────────────────────────────────────────
+    // UTILITY
+    // ────────────────────────────────────────────────────
+    function showMsg(id, text, type) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className   = 'msg ' + type;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
 
