@@ -588,29 +588,65 @@
     // ────────────────────────────────────────────────────
     // INVOICE
     // ────────────────────────────────────────────────────
-    function handleInvoice() {
-      const raw = document.getElementById('invoiceCmd').value.trim();
-      if (!raw) { showMsg('invoiceMsg', 'Please enter or speak a command.', 'error'); return; }
+    <script>
+function handleInvoice() {
+  const raw = document.getElementById('invoiceCmd').value.trim();
+  if (!raw) {
+    showMsg('invoiceMsg', 'Please enter or speak a command.', 'error');
+    return;
+  }
 
-      const cmd = normalise(raw);
+  const cmd = raw.toLowerCase();
 
-      const voicePattern = cmd.match(/customer\s+(.+?)\s+item\s+(.+?)\s+quantity\s+(\d+)/i);
-      if (voicePattern) {
-        buildInvoice(voicePattern[1].trim(), [{ itemName: voicePattern[2].trim(), qty: parseInt(voicePattern[3]) }]);
-        return;
-      }
+  // ---------- CUSTOMER (max 2 words before ka/ke/ki) ----------
+  let customer = 'Customer';
+  const nameMatch = cmd.match(/((\w+\s)?\w+)\s(ka|ke|ki)\b/);
+  if (nameMatch) customer = nameMatch[1];
 
-      const invoiceMatch = cmd.match(/(?:create\s+invoice\s+for|invoice\s+for|invoice)\s+([^,]+),(.+)/i);
-      if (!invoiceMatch) {
-        showMsg('invoiceMsg', 'Command samajh nahi aaya. Try: Customer Amit item Water Bottle quantity 2', 'error');
-        return;
-      }
+  // ---------- ITEM SPLIT (aur / and / comma) ----------
+  const parts = cmd
+    .replace(/((\w+\s)?\w+)\s(ka|ke|ki)\b/, '') // remove customer phrase
+    .split(/,|\band\b|\baur\b/gi)
+    .map(p => p.trim())
+    .filter(Boolean);
 
-      const customer  = invoiceMatch[1].trim();
-      const tokens    = invoiceMatch[2].trim().split(/,|\band\b/i).map(s => s.trim()).filter(Boolean);
-      const items     = tokens.map(t => { const m = t.match(/^(\d+)\s+(.+)$/i); return m ? { qty: parseInt(m[1]), itemName: m[2].trim() } : null; }).filter(Boolean);
-      buildInvoice(customer, items);
-    }
+  // ---------- SPOKEN NUMBERS ----------
+  const numberMap = {
+    ek: 1, do: 2, teen: 3, chaar: 4, paanch: 5
+  };
+
+  let items = [];
+
+  parts.forEach(p => {
+    // matches: "2 biscuit", "biscuit 2", "biscuit"
+    let qty = 1;
+    let name = p;
+
+    const numWord = p.match(/\b(ek|do|teen|chaar|paanch)\b/);
+    const numDigit = p.match(/\b\d+\b/);
+
+    if (numWord) qty = numberMap[numWord[1]];
+    if (numDigit) qty = parseInt(numDigit[0]);
+
+    name = p
+      .replace(/\b(ek|do|teen|chaar|paanch|\d+)\b/gi, '')
+      .replace(/\b(bill|invoice|banao|banado|create)\b/gi, '')
+      .trim();
+
+    if (!name) return;
+
+    items.push({ itemName: name, qty });
+  });
+
+  if (!items.length) {
+    showMsg('invoiceMsg', 'Item samajh nahi aaya. Dobara bolo.', 'error');
+    return;
+  }
+
+  buildInvoice(customer, items);
+}
+</script>
+      
 
     function buildInvoice(customer, items) {
       const lines = [], errors = [];
